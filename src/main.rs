@@ -11,7 +11,6 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-const EN_JSON_PATH: &str = "./l10n/en.json";
 
 #[derive(Debug, Deserialize, Serialize)]
 struct SrcInfo {
@@ -41,13 +40,12 @@ fn main() -> ExitCode {
 }
 
 fn scan_by_args(pkgs: Vec<String>) -> Result<bool> {
-    let f = read_file()?;
+    let tree = get_tree(Path::new("."))?;
+    let f = read_file(&tree)?;
     let mut json = read_en_json(&f)?;
 
     let mut has_modify = false;
     let mut no_err = true;
-
-    let tree = get_tree(Path::new("."))?;
 
     for i in WalkDir::new(tree).min_depth(2).max_depth(2) {
         let i = i?;
@@ -86,22 +84,22 @@ fn scan_by_args(pkgs: Vec<String>) -> Result<bool> {
     Ok(no_err)
 }
 
-fn read_file() -> Result<File, anyhow::Error> {
+fn read_file(tree: &Path) -> Result<File, anyhow::Error> {
     let f = fs::OpenOptions::new()
         .read(true)
         .write(true)
-        .open(EN_JSON_PATH)?;
+        .open(tree.join("l10n").join("en.json"))?;
 
     Ok(f)
 }
 
 fn scan_all_translation() -> Result<bool> {
-    let f = read_file()?;
+    let tree = get_tree(Path::new("."))?;
+    let f = read_file(&tree)?;
 
     let mut json = read_en_json(&f)?;
 
     let mut no_err = true;
-    let tree = get_tree(Path::new("."))?;
 
     for i in WalkDir::new(tree).min_depth(2).max_depth(2) {
         let i = i?;
