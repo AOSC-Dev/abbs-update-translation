@@ -111,7 +111,7 @@ fn create_or_read_file(tree: &Path) -> Result<File, anyhow::Error> {
 
 fn scan_all_translation() -> Result<bool> {
     let tree = get_tree(Path::new("."))?;
-    let (f, mut json) = read_tree_en_json(&tree)?;
+    let (mut f, mut json) = read_tree_en_json(&tree)?;
 
     let mut pkgs = vec![];
 
@@ -155,6 +155,7 @@ fn scan_all_translation() -> Result<bool> {
         }
     }
 
+    f.rewind()?;
     serde_json::to_writer(BufWriter::new(f), &json)?;
 
     Ok(no_err)
