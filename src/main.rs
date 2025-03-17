@@ -41,8 +41,7 @@ fn main() -> ExitCode {
 
 fn scan_by_args(pkgs: Vec<String>) -> Result<bool> {
     let tree = get_tree(Path::new("."))?;
-    let f = create_or_read_file(&tree)?;
-    let mut json = read_en_json(&f)?;
+    let (f, mut json) = read_tree_en_json(&tree)?;
 
     let mut has_modify = false;
     let mut no_err = true;
@@ -84,6 +83,21 @@ fn scan_by_args(pkgs: Vec<String>) -> Result<bool> {
     Ok(no_err)
 }
 
+fn read_tree_en_json(tree: &Path) -> Result<(File, HashMap<String, String>)> {
+    let mut f = create_or_read_file(tree)?;
+
+    let json = read_en_json(&f).or_else(|e| {
+        eprintln!("Err: {e}, will create new file");
+        f.rewind()?;
+        f.set_len(0)?;
+        f.write_all(b"{}")?;
+        f.flush()?;
+        anyhow::Ok(HashMap::new())
+    })?;
+
+    Ok((f, json))
+}
+
 fn create_or_read_file(tree: &Path) -> Result<File, anyhow::Error> {
     let f = fs::OpenOptions::new()
         .read(true)
@@ -97,14 +111,7 @@ fn create_or_read_file(tree: &Path) -> Result<File, anyhow::Error> {
 
 fn scan_all_translation() -> Result<bool> {
     let tree = get_tree(Path::new("."))?;
-    let mut f = create_or_read_file(&tree)?;
-    let mut json = read_en_json(&f).or_else(|e| {
-        eprintln!("Err: {e}, will create new file");
-        f.rewind()?;
-        f.set_len(0)?;
-        f.write_all(b"{}")?;
-        anyhow::Ok(HashMap::new())
-    })?;
+    let (f, mut json) = read_tree_en_json(&tree)?;
 
     let mut pkgs = vec![];
 
