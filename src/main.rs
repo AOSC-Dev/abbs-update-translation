@@ -4,7 +4,7 @@ use std::{
     fs::{self, read_dir, File},
     io::{BufReader, BufWriter, Seek, Write},
     path::{Path, PathBuf},
-    process::{Child, Command, ExitCode},
+    process::{Command, ExitCode},
 };
 
 use anyhow::{bail, Result};
@@ -131,6 +131,7 @@ fn scan_all_translation() -> Result<bool> {
     let results = pkgs
         .par_iter()
         .map(|(x, p)| {
+            eprintln!("Scanning package: {x}");
             if let Err(e) = run_acbs(x) {
                 eprintln!("{x}: {e}");
                 return None;
