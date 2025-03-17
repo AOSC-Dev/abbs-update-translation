@@ -179,8 +179,6 @@ fn modifly(i: &Path, json: &mut HashMap<String, String>) -> Result<()> {
                     json.insert(pkg_json.pkgname, pkg_json.pkgdes);
                 }
             }
-
-            std::fs::remove_file(i.path())?;
         }
     }
 
