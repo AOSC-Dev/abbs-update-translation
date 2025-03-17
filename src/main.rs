@@ -98,10 +98,11 @@ fn create_or_read_file(tree: &Path) -> Result<File, anyhow::Error> {
 fn scan_all_translation() -> Result<bool> {
     let tree = get_tree(Path::new("."))?;
     let mut f = create_or_read_file(&tree)?;
-    let mut json = read_en_json(&f).or_else(|_| {
+    let mut json = read_en_json(&f).or_else(|e| {
+        eprintln!("Err: {e}, will create new file");
         f.rewind()?;
         f.set_len(0)?;
-        f.write_all(b"{{}}")?;
+        f.write_all(b"{}")?;
         anyhow::Ok(HashMap::new())
     })?;
 
