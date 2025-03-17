@@ -4,10 +4,11 @@ use std::{
     fs::{self, read_dir, File},
     io::{BufReader, BufWriter, Seek, Write},
     path::{Path, PathBuf},
-    process::{Command, ExitCode},
+    process::{Child, Command, ExitCode},
 };
 
 use anyhow::{bail, Result};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
@@ -69,7 +70,7 @@ fn scan_by_args(pkgs: Vec<String>) -> Result<bool> {
                 continue;
             }
 
-            modifly(i, &mut json)?;
+            modifly(i.path(), &mut json)?;
             has_modify = true;
         }
     }
@@ -104,6 +105,8 @@ fn scan_all_translation() -> Result<bool> {
         anyhow::Ok(HashMap::new())
     })?;
 
+    let mut pkgs = vec![];
+
     let mut no_err = true;
 
     for i in WalkDir::new(tree).min_depth(2).max_depth(2) {
@@ -121,16 +124,26 @@ fn scan_all_translation() -> Result<bool> {
         }
 
         let file_name = i.file_name().to_string_lossy();
+        pkgs.push((file_name.to_string(), i.path().to_path_buf()));
+    }
 
-        println!("Scanning package {}", file_name);
+    let results = pkgs
+        .par_iter()
+        .map(|(x, p)| {
+            println!("Scanning package {}", x);
+            if let Err(e) = run_acbs(x) {
+                eprintln!("{x}: {e}");
+                return None;
+            }
+            Some(p)
+        })
+        .collect::<Vec<_>>();
 
-        if let Err(e) = run_acbs(&file_name) {
-            eprintln!("{}: {}", file_name, e);
-            no_err = false;
-            continue;
+    for r in results {
+        match r {
+            Some(p) => modifly(p, &mut json)?,
+            None => no_err = false,
         }
-
-        modifly(i, &mut json)?;
     }
 
     serde_json::to_writer(BufWriter::new(f), &json)?;
@@ -138,8 +151,8 @@ fn scan_all_translation() -> Result<bool> {
     Ok(no_err)
 }
 
-fn modifly(i: walkdir::DirEntry, json: &mut HashMap<String, String>) -> Result<()> {
-    for i in read_dir(i.path())? {
+fn modifly(i: &Path, json: &mut HashMap<String, String>) -> Result<()> {
+    for i in read_dir(i)? {
         let i = i?;
         if i.path()
             .extension()
@@ -172,20 +185,13 @@ fn read_en_json(f: &File) -> Result<HashMap<String, String>, anyhow::Error> {
     Ok(json)
 }
 
-fn run_acbs(pkg_name: &str) -> Result<()> {
+fn run_acbs(pkg_name: &str) -> Result<Child> {
     let out = Command::new("acbs-build")
         .arg("--generate-package-metadata")
         .arg(pkg_name)
-        .output()?;
+        .spawn()?;
 
-    if !out.status.success() {
-        bail!(
-            "acbs-build return non-zero code: {}",
-            out.status.code().unwrap_or(1)
-        )
-    }
-
-    Ok(())
+    Ok(out)
 }
 
 fn get_tree(directory: &Path) -> Result<PathBuf> {

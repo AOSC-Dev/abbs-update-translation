@@ -8,3 +8,4 @@ walkdir = "2"
 anyhow = "1"
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
+rayon = "1.10.0"
