@@ -206,7 +206,13 @@ fn run_acbs(pkg_name: &str) -> Result<()> {
         .output()?;
 
     if !out.status.success() {
-        bail!("Run acbs-build get non-zero code: {:?}", out.status.code())
+        eprintln!("STDERR:\n{}", String::from_utf8_lossy(&out.stderr));
+        eprintln!("STDOUT:\n{}", String::from_utf8_lossy(&out.stdout));
+
+        bail!(
+            "Run acbs-build get non-zero code: {}",
+            out.status.code().unwrap_or(1)
+        )
     }
 
     Ok(())
