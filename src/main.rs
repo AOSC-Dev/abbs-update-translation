@@ -78,7 +78,7 @@ fn scan_by_args(pkgs: Vec<String>) -> Result<bool> {
         bail!("Packages: {pkgs:?} does not exist or unsupport sub-package");
     }
 
-    serde_json::to_writer(BufWriter::new(f), &json)?;
+    write_to_file(f, json)?;
 
     Ok(no_err)
 }
@@ -111,7 +111,7 @@ fn create_or_read_file(tree: &Path) -> Result<File, anyhow::Error> {
 
 fn scan_all_translation() -> Result<bool> {
     let tree = get_tree(Path::new("."))?;
-    let (mut f, mut json) = read_tree_en_json(&tree)?;
+    let (f, mut json) = read_tree_en_json(&tree)?;
 
     let mut pkgs = vec![];
 
@@ -155,12 +155,16 @@ fn scan_all_translation() -> Result<bool> {
         }
     }
 
-    f.rewind()?;
-    f.set_len(0)?;
-    f.flush()?;
-    serde_json::to_writer(BufWriter::new(f), &json)?;
+    write_to_file(f, json)?;
 
     Ok(no_err)
+}
+
+fn write_to_file(mut f: File, json: HashMap<String, String>) -> Result<()> {
+    f.rewind()?;
+    serde_json::to_writer(BufWriter::new(f), &json)?;
+
+    Ok(())
 }
 
 fn modifly(i: &Path, json: &mut HashMap<String, String>) -> Result<()> {
