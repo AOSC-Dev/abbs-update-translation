@@ -124,13 +124,13 @@ fn scan_all_translation() -> Result<bool> {
         }
 
         let file_name = i.file_name().to_string_lossy();
+
         pkgs.push((file_name.to_string(), i.path().to_path_buf()));
     }
 
     let results = pkgs
         .par_iter()
         .map(|(x, p)| {
-            println!("Scanning package {}", x);
             if let Err(e) = run_acbs(x) {
                 eprintln!("{x}: {e}");
                 return None;
@@ -185,13 +185,17 @@ fn read_en_json(f: &File) -> Result<HashMap<String, String>, anyhow::Error> {
     Ok(json)
 }
 
-fn run_acbs(pkg_name: &str) -> Result<Child> {
+fn run_acbs(pkg_name: &str) -> Result<()> {
     let out = Command::new("acbs-build")
         .arg("--generate-package-metadata")
         .arg(pkg_name)
-        .spawn()?;
+        .output()?;
 
-    Ok(out)
+    if !out.status.success() {
+        bail!("Run acbs-build get non-zero code: {:?}", out.status.code())
+    }
+
+    Ok(())
 }
 
 fn get_tree(directory: &Path) -> Result<PathBuf> {
