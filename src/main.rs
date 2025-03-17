@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     env::args,
     fs::{self, read_dir, File},
-    io::{BufReader, BufWriter},
+    io::{BufReader, BufWriter, Seek, Write},
     path::{Path, PathBuf},
     process::{Command, ExitCode},
 };
@@ -10,7 +10,6 @@ use std::{
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
-
 
 #[derive(Debug, Deserialize, Serialize)]
 struct SrcInfo {
@@ -41,7 +40,7 @@ fn main() -> ExitCode {
 
 fn scan_by_args(pkgs: Vec<String>) -> Result<bool> {
     let tree = get_tree(Path::new("."))?;
-    let f = read_file(&tree)?;
+    let f = create_or_read_file(&tree)?;
     let mut json = read_en_json(&f)?;
 
     let mut has_modify = false;
@@ -84,10 +83,12 @@ fn scan_by_args(pkgs: Vec<String>) -> Result<bool> {
     Ok(no_err)
 }
 
-fn read_file(tree: &Path) -> Result<File, anyhow::Error> {
+fn create_or_read_file(tree: &Path) -> Result<File, anyhow::Error> {
     let f = fs::OpenOptions::new()
         .read(true)
         .write(true)
+        .create(true)
+        .truncate(false)
         .open(tree.join("l10n").join("en.json"))?;
 
     Ok(f)
@@ -95,9 +96,13 @@ fn read_file(tree: &Path) -> Result<File, anyhow::Error> {
 
 fn scan_all_translation() -> Result<bool> {
     let tree = get_tree(Path::new("."))?;
-    let f = read_file(&tree)?;
-
-    let mut json = read_en_json(&f)?;
+    let mut f = create_or_read_file(&tree)?;
+    let mut json = read_en_json(&f).or_else(|_| {
+        f.rewind()?;
+        f.set_len(0)?;
+        f.write_all(b"{{}}")?;
+        anyhow::Ok(HashMap::new())
+    })?;
 
     let mut no_err = true;
 
