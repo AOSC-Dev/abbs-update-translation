@@ -156,6 +156,8 @@ fn scan_all_translation() -> Result<bool> {
     }
 
     f.rewind()?;
+    f.set_len(0)?;
+    f.flush()?;
     serde_json::to_writer(BufWriter::new(f), &json)?;
 
     Ok(no_err)
